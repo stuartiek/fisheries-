@@ -31,7 +31,7 @@ app.listen(PORT, () => {
 
 
 
-app.get('/dashboard', async (req, res) => {
+app.get('/', async (req, res) => {
   //if (!req.session.loggedin) return res.redirect('/');
-  res.render('pages/dashboard', { page: 'dashboard', user: req.session.currentuser });
+  res.render('pages/index', { page: 'index', user: req.session.currentuser });
 });
