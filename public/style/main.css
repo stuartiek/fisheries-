@@ -1,0 +1,103 @@
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    min-height: 100vh;
+}
+.loginBody {
+    /* background-color: #DCE1DE; */
+    background: linear-gradient(to right, #34d399, #06b6d4);
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+.login-container {
+    background-color: #1F2421;
+    color: #DCE1DE;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px;
+    box-sizing: border-box;
+    width: 22vw;
+    min-width: 320px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+}
+.login-container h1 {
+    margin-top: 0;
+    margin-bottom: 24px;
+}
+.login-container form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+}
+.login-container label {
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+}
+.login-container input {
+    margin-bottom: 16px;
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 6px;
+    border: 1px solid #3a423d;
+}
+.login-container button {
+    margin-top: 8px;
+    padding: 10px 24px;
+    background-color: #34d399;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+.login-container button:hover {
+    background-color: #059669;
+}
+.login-container .error-msg {
+    color: #f87171;
+    margin-bottom: 16px;
+}
+.login-container a {
+    margin-left: 16px;
+    color: #34d399;
+    text-decoration: none;
+}
+.login-container a:hover {
+    text-decoration: underline;
+}
+
+header {
+    background-color: #1F2421;
+    color: #DCE1DE;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+header h2 {
+    margin: 0;
+}
+header nav a {
+    color: #34d399;
+    text-decoration: none;
+    margin-left: 16px;
+}
+header nav a:hover {
+    text-decoration: underline;
+}
+
+
+
+

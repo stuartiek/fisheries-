@@ -3,8 +3,28 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Fisheries</title>
+        <link rel="stylesheet" href="/style/main.css">
+        <title>Fisheries | Login</title>
     </head>
-    <body>
+    <body class="loginBody">
+        <div class="login-container">
+            <h1>Login</h1>
+            <form action="/login" method="POST">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+                <div class="error-msg">
+                    <% if (locals.error_msg) { %>
+                        <p><%= error_msg %></p>
+                    <% } %>
+                </div>
+                <div>
+                    <button type="submit">Login</button>
+                    <a href="/signUp">Sign Up</a>
+                </div>
+                
+            </form>
+        </div>
     </body>
 </html>
