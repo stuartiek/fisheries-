@@ -1,7 +1,7 @@
 // Main frontend script (ready for API / map integration)
 
 
-
+//download csv button
 function downloadCSV() {
     const table = document.querySelector(".vessel-table");
     const rows = [...table.querySelectorAll("tbody tr")];
@@ -52,3 +52,44 @@ function downloadCSV() {
 
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+document.getElementById("vessel-search-form")?.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const query = document.getElementById("vessel-query").value.trim();
+    const status = document.getElementById("vessel-search-status");
+    const results = document.getElementById("vessel-results");
+
+    status.textContent = "Searching...";
+    results.replaceChildren();
+
+    try {
+        const response = await fetch(
+            `/api/vessels/search?query=${encodeURIComponent(query)}`
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Search failed.");
+        }
+
+        const records = (data.entries || []).flatMap(entry =>
+            entry.registryInfo?.length
+                ? entry.registryInfo
+                : entry.selfReportedInfo || []
+        );
+
+        for (const record of records) {
+            const item = document.createElement("li");
+            item.textContent =
+                `${record.shipname || "Unknown"} — MMSI: ${record.ssvid || "N/A"} — Flag: ${record.flag || "Unknown"}`;
+            results.appendChild(item);
+        }
+
+        status.textContent = records.length
+            ? `${records.length} result(s).`
+            : "No vessels found.";
+    } catch (error) {
+        status.textContent = error.message;
+    }
+});

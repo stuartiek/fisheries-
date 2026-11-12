@@ -15,6 +15,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const dbname = 'fisheries';
 
+//setup for api
+const API = "https://gateway.api.globalfishingwatch.org/v3";
+
+const VESSEL_DATASET = "public-global-vessel-identity:latest";
+const EVENT_DATASET = "public-global-fishing-events:latest";
+
+let events = [];
+let currentRequest = 0;
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'view'));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -36,6 +45,48 @@ app.use((req, res, next) => {
 const client = new MongoClient('mongodb://localhost:27017');
 let db;
 
+app.get('/api/vessels/search', async (req, res) => {
+    if (!req.session.loggedin) {
+        return res.status(401).json({ error: 'Please log in.' });
+    }
+
+    const query = typeof req.query.query === 'string'
+        ? req.query.query.trim()
+        : '';
+
+    if (!query) {
+        return res.status(400).json({ error: 'A search query is required.' });
+    }
+
+    const token = process.env.GFW_API_TOKEN;
+    if (!token) {
+        return res.status(500).json({ error: 'GFW API token is not configured.' });
+    }
+
+    const params = new URLSearchParams({
+        query,
+        'datasets[0]': VESSEL_DATASET
+    });
+
+    try {
+        const response = await fetch(`${API}/vessels/search?${params}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('GFW API request failed:', response.status, data);
+            return res.status(response.status).json({ error: 'Vessel search failed.' });
+        }
+
+        res.json(data);
+    } catch (err) {
+        console.error('Could not reach GFW API:', err);
+        res.status(502).json({ error: 'Could not reach the vessel API.' });
+    }
+});
+
+
 client.connect()
     .then(() => {
         db = client.db(dbname);
@@ -46,7 +97,6 @@ client.connect()
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
 
 
 app.get('/', async (req, res) => {

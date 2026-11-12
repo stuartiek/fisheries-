@@ -61,6 +61,16 @@
                     <p style="opacity: 0.7;">Controls placeholder for API parameters (Date Range, Area, Resolution).</p>
                 </div>
             </div>
+            <div class="panel vessel-search-panel">
+            <h3>Search vessels</h3>
+            <form id="vessel-search-form">
+                <label for="vessel-query">Vessel name, IMO, or MMSI</label>
+                <input id="vessel-query" name="query" required>
+                <button type="submit">Search</button>
+            </form>
+            <p id="vessel-search-status" role="status"></p>
+            <ul id="vessel-results"></ul>
+        </div>
 
             <div class="panel table-panel">
                 <div class="panel-header">

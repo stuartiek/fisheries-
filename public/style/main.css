@@ -161,6 +161,9 @@ header nav a:hover {
     border-radius: 10px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
+.vessel-search-panel {
+    margin-bottom: 24px;
+}
 .panel-header {
     display: flex;
     justify-content: space-between;
