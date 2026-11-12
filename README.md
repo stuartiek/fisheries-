@@ -39,7 +39,14 @@ Before running this project, make sure you have installed:
    ```
    *(Or run `node server.js` directly.)*
 
-5. **Open in your browser**
+5. **Setting up your token**
+   - In the concole run:
+   ```bash
+   $env:GFW_API_TOKEN = "your-token"
+   ```
+  - Replace your-token with your working API token pasted from the GFW website. Leave the quotation marks.
+
+6. **Open in your browser**
    - Visit **`http://localhost:3000`**
    - Click **Sign Up** (`/signUp`) to create a local user account, which will log you straight into the **Dashboard** (`/dashboard`).
 

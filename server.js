@@ -19,7 +19,6 @@ const dbname = 'fisheries';
 const API = "https://gateway.api.globalfishingwatch.org/v3";
 
 const VESSEL_DATASET = "public-global-vessel-identity:latest";
-const EVENT_DATASET = "public-global-fishing-events:latest";
 
 let events = [];
 let currentRequest = 0;
@@ -45,11 +44,14 @@ app.use((req, res, next) => {
 const client = new MongoClient('mongodb://localhost:27017');
 let db;
 
+//api route for vessel search
 app.get('/api/vessels/search', async (req, res) => {
+    //checks if the user is logged in
     if (!req.session.loggedin) {
         return res.status(401).json({ error: 'Please log in.' });
     }
 
+    //checks if the user is searching for a string
     const query = typeof req.query.query === 'string'
         ? req.query.query.trim()
         : '';
@@ -58,16 +60,19 @@ app.get('/api/vessels/search', async (req, res) => {
         return res.status(400).json({ error: 'A search query is required.' });
     }
 
+    //looks for a token stored as locan env variable
     const token = process.env.GFW_API_TOKEN;
     if (!token) {
         return res.status(500).json({ error: 'GFW API token is not configured.' });
     }
 
+    //creates search request
     const params = new URLSearchParams({
         query,
         'datasets[0]': VESSEL_DATASET
     });
 
+    //the actual request to the GFW API
     try {
         const response = await fetch(`${API}/vessels/search?${params}`, {
             headers: { Authorization: `Bearer ${token}` }

@@ -53,6 +53,7 @@ function downloadCSV() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+//vessel search form logic
 document.getElementById("vessel-search-form")?.addEventListener("submit", async event => {
     event.preventDefault();
 
