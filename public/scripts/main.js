@@ -176,20 +176,22 @@ document.getElementById("area-filter-form")?.addEventListener("submit", async ev
         const records = (data.entries || []).flatMap(entry =>
             Object.values(entry).flat()
         );
+        const vesselEvents = data.vesselEvents || [];
 
-        render4WingsData(records, resolution);
-        status.textContent = `Loaded ${records.length} grid cells in area.`;
+        render4WingsData(records, vesselEvents, resolution);
+        status.textContent = `Loaded ${records.length} grid cells and ${vesselEvents.length} vessel events in area.`;
     } catch (error) {
         status.textContent = error.message;
     }
 });
 
-function render4WingsData(records, resolution) {
+function render4WingsData(records, vesselEvents, resolution) {
     if (gridLayer) gridLayer.clearLayers();
 
     const cellSize = resolution === "HIGH" ? 0.01 : 0.1;
     let totalHours = 0;
     const gearCounts = {};
+    const flagGearMap = {};
 
     records.forEach(cell => {
         const lat = Number(cell.lat);
@@ -200,6 +202,9 @@ function render4WingsData(records, resolution) {
 
         totalHours += hours;
         gearCounts[gear] = (gearCounts[gear] || 0) + hours;
+        if (!flagGearMap[flag] || gearCounts[gear] > (gearCounts[flagGearMap[flag]] || 0)) {
+            flagGearMap[flag] = gear;
+        }
 
         if (gridLayer && !isNaN(lat) && !isNaN(lon)) {
             const color = hours > 20 ? "#ef4444" : hours > 5 ? "#facc15" : "#34d399";
@@ -212,6 +217,7 @@ function render4WingsData(records, resolution) {
             .bindPopup(
                 `<b>Grid Cell:</b> ${lat.toFixed(2)}, ${lon.toFixed(2)}<br>` +
                 `<b>Fishing Hours:</b> ${hours.toFixed(2)}h<br>` +
+                `<b>Vessels in Cell:</b> ${cell.vesselIDs || 1}<br>` +
                 `<b>Gear:</b> ${gear} (${flag})<br>` +
                 `<b>Date:</b> ${cell.date || "N/A"}`
             )
@@ -219,35 +225,95 @@ function render4WingsData(records, resolution) {
         }
     });
 
+    // Plot individual named vessel event markers on top of the 4Wings heatmap grid
+    vesselEvents.forEach(ev => {
+        const lat = Number(ev.position?.lat);
+        const lon = Number(ev.position?.lon);
+        if (gridLayer && !isNaN(lat) && !isNaN(lon)) {
+            const name = ev.vessel?.name || "Unnamed Vessel";
+            const mmsi = ev.vessel?.ssvid || "N/A";
+            const flag = ev.vessel?.flag || "UNK";
+            const durationHrs = ev.start && ev.end
+                ? ((new Date(ev.end) - new Date(ev.start)) / 3600000).toFixed(1)
+                : "—";
+
+            L.circleMarker([lat, lon], {
+                radius: 5,
+                color: "#ffffff",
+                weight: 1.5,
+                fillColor: "#06b6d4",
+                fillOpacity: 0.95
+            })
+            .bindPopup(
+                `<b>${name}</b> (${flag})<br>` +
+                `<b>MMSI:</b> ${mmsi}<br>` +
+                `<b>Fishing Duration:</b> ${durationHrs}h<br>` +
+                `<b>Position:</b> ${lat.toFixed(3)}, ${lon.toFixed(3)}`
+            )
+            .addTo(gridLayer);
+        }
+    });
+
     // Update KPI Cards
-    document.getElementById("kpi-vessels").textContent = records.length;
+    const uniqueVessels = new Set(vesselEvents.map(ev => ev.vessel?.ssvid || ev.vessel?.id).filter(Boolean));
+    document.getElementById("kpi-vessels").textContent = uniqueVessels.size || records.length;
     document.getElementById("kpi-hours").textContent = `${totalHours.toFixed(1)} hrs`;
     const topGear = Object.entries(gearCounts).sort((a, b) => b[1] - a[1])[0];
     document.getElementById("kpi-gear").textContent = topGear ? topGear[0] : "—";
 
-    // Populate Activity Log Table (compatible with downloadCSV())
+    // Populate Activity Log Table with real named vessels (or grid fallback if no events)
     const tbody = document.getElementById("vessel-tbody");
     tbody.replaceChildren();
 
-    if (records.length === 0) {
+    if (vesselEvents.length === 0 && records.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="opacity: 0.6;">No fishing activity found in this area/date range.</td></tr>`;
         return;
     }
 
-    records.slice(0, 100).forEach(cell => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${cell.vessel_name || "Aggregated Cell"}</td>
-            <td>${cell.mmsi || "Grid"}</td>
-            <td>${cell.flag || "UNK"}</td>
-            <td>${cell.geartype || "Unknown"}</td>
-            <td>Fishing (${cell.date || "—"})</td>
-            <td>${(Number(cell.hours) || 0).toFixed(2)}</td>
-            <td>${Number(cell.lat).toFixed(2)}, ${Number(cell.lon).toFixed(2)}</td>
-        `;
-        tr.addEventListener("click", () => {
-            if (map) map.flyTo([Number(cell.lat), Number(cell.lon)], 8);
+    if (vesselEvents.length > 0) {
+        vesselEvents.slice(0, 100).forEach(ev => {
+            const name = ev.vessel?.name || "Unnamed Vessel";
+            const mmsi = ev.vessel?.ssvid || "N/A";
+            const flag = ev.vessel?.flag || "UNK";
+            const gear = flagGearMap[flag] || topGear?.[0] || ev.vessel?.type || "Fishing";
+            const dateStr = ev.start ? ev.start.slice(0, 10) : "—";
+            const durationHrs = ev.start && ev.end
+                ? ((new Date(ev.end) - new Date(ev.start)) / 3600000).toFixed(2)
+                : "0.00";
+            const lat = Number(ev.position?.lat || 0);
+            const lon = Number(ev.position?.lon || 0);
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${name}</strong></td>
+                <td>${mmsi}</td>
+                <td>${flag}</td>
+                <td>${gear}</td>
+                <td>${ev.type || "fishing"} (${dateStr})</td>
+                <td>${durationHrs}</td>
+                <td>${lat.toFixed(2)}, ${lon.toFixed(2)}</td>
+            `;
+            tr.addEventListener("click", () => {
+                if (map) map.flyTo([lat, lon], 8);
+            });
+            tbody.appendChild(tr);
         });
-        tbody.appendChild(tr);
-    });
+    } else {
+        records.slice(0, 100).forEach(cell => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>Grid Cell (${cell.vesselIDs || 1} vessel${cell.vesselIDs === 1 ? "" : "s"})</td>
+                <td>—</td>
+                <td>${cell.flag || "UNK"}</td>
+                <td>${cell.geartype || "Unknown"}</td>
+                <td>Fishing (${cell.date || "—"})</td>
+                <td>${(Number(cell.hours) || 0).toFixed(2)}</td>
+                <td>${Number(cell.lat).toFixed(2)}, ${Number(cell.lon).toFixed(2)}</td>
+            `;
+            tr.addEventListener("click", () => {
+                if (map) map.flyTo([Number(cell.lat), Number(cell.lon)], 8);
+            });
+            tbody.appendChild(tr);
+        });
+    }
 }

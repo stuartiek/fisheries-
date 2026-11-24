@@ -21,6 +21,7 @@ const GFW_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZEtleSJ9.eyJk
 
 const VESSEL_DATASET = "public-global-vessel-identity:latest";
 const FISHING_EFFORT_DATASET = "public-global-fishing-effort:latest";
+const FISHING_EVENTS_DATASET = "public-global-fishing-events:latest";
 
 let events = [];
 let currentRequest = 0;
@@ -135,22 +136,42 @@ app.post('/api/4wings/area', async (req, res) => {
     };
 
     try {
-        const response = await fetch(`${API}/4wings/report?${params}`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ geojson })
-        });
-        const data = await response.json();
+        const [reportRes, eventsRes] = await Promise.all([
+            fetch(`${API}/4wings/report?${params}`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ geojson })
+            }),
+            fetch(`${API}/events?limit=100&offset=0`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    datasets: [FISHING_EVENTS_DATASET],
+                    startDate,
+                    endDate,
+                    geometry: geojson
+                })
+            })
+        ]);
 
-        if (!response.ok) {
-            console.error('GFW 4Wings request failed:', response.status, data);
-            return res.status(response.status).json({ error: '4Wings area request failed.' });
+        const data = await reportRes.json();
+        const eventsData = eventsRes.ok ? await eventsRes.json() : { entries: [] };
+
+        if (!reportRes.ok) {
+            console.error('GFW 4Wings request failed:', reportRes.status, data);
+            return res.status(reportRes.status).json({ error: '4Wings area request failed.' });
         }
 
-        res.json(data);
+        res.json({
+            ...data,
+            vesselEvents: eventsData.entries || []
+        });
     } catch (err) {
         console.error('Could not reach GFW 4Wings API:', err);
         res.status(502).json({ error: 'Could not reach the 4Wings API.' });
