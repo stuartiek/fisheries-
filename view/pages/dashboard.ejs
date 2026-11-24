@@ -4,6 +4,7 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="/style/main.css">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
         <title>Fisheries | Dashboard</title>
     </head>
     <body>
@@ -50,15 +51,46 @@
                 <div class="panel map-panel">
                     <div class="panel-header">
                         <h3>Map View</h3>
+                        <span id="area-status" class="sync-meta">Select an area and click Load Area on Map</span>
                     </div>
-                    <div id="map-placeholder" style="width: 100%; height: 450px; border-radius: 8px; background: #151917; display: flex; align-items: center; justify-content: center;">
-                        <p style="opacity: 0.6;">Map / API integration placeholder</p>
-                    </div>
+                    <div id="map" style="width: 100%; height: 450px; border-radius: 8px;"></div>
                 </div>
 
                 <div class="panel form-panel">
-                    <h3>Filter / Collect Data</h3>
-                    <p style="opacity: 0.7;">Controls placeholder for API parameters (Date Range, Area, Resolution).</p>
+                    <h3>Filter Data by Area</h3>
+                    <form id="area-filter-form">
+                        <label for="area-preset">Preset Area</label>
+                        <select id="area-preset">
+                            <option value="56.0,-3.0,60.0,2.0">Scottish Waters / North Sea</option>
+                            <option value="50.0,-11.0,55.0,-5.0">Irish & Celtic Sea</option>
+                            <option value="49.5,-5.5,51.2,1.5">English Channel</option>
+                            <option value="VIEWPORT">Use Current Map Viewport</option>
+                        </select>
+
+                        <label>Bounding Box (Min/Max Lat & Lng)</label>
+                        <div class="split-inputs">
+                            <input type="number" step="any" id="min-lat" value="56.0" placeholder="Min Lat" required>
+                            <input type="number" step="any" id="min-lng" value="-3.0" placeholder="Min Lng" required>
+                        </div>
+                        <div class="split-inputs">
+                            <input type="number" step="any" id="max-lat" value="60.0" placeholder="Max Lat" required>
+                            <input type="number" step="any" id="max-lng" value="2.0" placeholder="Max Lng" required>
+                        </div>
+
+                        <label>Date Range</label>
+                        <div class="split-inputs">
+                            <input type="date" id="start-date" value="2025-09-01" required>
+                            <input type="date" id="end-date" value="2025-09-15" required>
+                        </div>
+
+                        <label for="spatial-res">Grid Resolution</label>
+                        <select id="spatial-res">
+                            <option value="LOW">Low (0.1° Grid Cells)</option>
+                            <option value="HIGH">High (0.01° Fine Grid Cells)</option>
+                        </select>
+
+                        <button type="submit" class="btn-primary">Load Area on Map</button>
+                    </form>
                 </div>
             </div>
 
@@ -104,6 +136,7 @@
             </div>
         </div>
 
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script src="/scripts/main.js"></script>
     </body>
 </html>

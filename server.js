@@ -17,8 +17,10 @@ const dbname = 'fisheries';
 
 //setup for api
 const API = "https://gateway.api.globalfishingwatch.org/v3";
+const GFW_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZEtleSJ9.eyJkYXRhIjp7Im5hbWUiOiJmaXNoZXJpZXMiLCJ1c2VySWQiOjc0NDExLCJhcHBsaWNhdGlvbk5hbWUiOiJmaXNoZXJpZXMiLCJpZCI6MTcyODQsInR5cGUiOiJ1c2VyLWFwcGxpY2F0aW9uIn0sImlhdCI6MTc5NDQxMzM5MSwiZXhwIjoyMTA5NzczMzkxLCJhdWQiOiJnZnciLCJpc3MiOiJnZncifQ.TAEx7UNieBPrzupRKklf7Uv_sNOTj9JpUPLm5yZM2Vy6HjBiALmxUTceXrGBJF3kzDdI8Pk5HS-l8wChsQ5ySK0hV9LM5ymXZPtASuoBp_d3Du0oAZzGN8M2kyLfWmjOaEVBXRlgAl_psNqfZTGBhritICEciS_0K-J1RfRiDuvn-aiPSxJvCRWKyjcC9FiBJgs0t_E3KYWaGf_tbVsGjGaucDER0qmIfEAR48VKVmiIUhUuwu90i_fG5q5NKdKqnVrK-agHB-nKRlRCyAh8By4i6pHwY3rm7HGkwJniSymQitGZcXo7nt7mhqeWEGPiDAe6cE2mBzsc6dmIF-Fl5cEz156mNdVWgAu9jO4RiVddddB84FBC54ZxASsWKohKcEtCgdW26LaS1Lzb22a3kodjvJjmrNx5SmkWEjiP8pmbZ1StXy3z6P7W01jsLO_gip1AN2K_Tyi5lqN7xhDwSDtqDHNAmVgOdZHbuWVKfBMXk2NkB8dbnXiCXYEqeNjt";
 
 const VESSEL_DATASET = "public-global-vessel-identity:latest";
+const FISHING_EFFORT_DATASET = "public-global-fishing-effort:latest";
 
 let events = [];
 let currentRequest = 0;
@@ -61,7 +63,7 @@ app.get('/api/vessels/search', async (req, res) => {
     }
 
     //looks for a token stored as locan env variable
-    const token = process.env.GFW_API_TOKEN;
+    const token = process.env.GFW_API_TOKEN || GFW_TOKEN;
     if (!token) {
         return res.status(500).json({ error: 'GFW API token is not configured.' });
     }
@@ -88,6 +90,70 @@ app.get('/api/vessels/search', async (req, res) => {
     } catch (err) {
         console.error('Could not reach GFW API:', err);
         res.status(502).json({ error: 'Could not reach the vessel API.' });
+    }
+});
+
+//api route for 4wings area-filtered fishing effort
+app.post('/api/4wings/area', async (req, res) => {
+    if (!req.session.loggedin) {
+        return res.status(401).json({ error: 'Please log in.' });
+    }
+
+    const token = process.env.GFW_API_TOKEN || GFW_TOKEN;
+    if (!token) {
+        return res.status(500).json({ error: 'GFW API token is not configured.' });
+    }
+
+    const {
+        minLat,
+        minLng,
+        maxLat,
+        maxLng,
+        startDate = '2025-09-01',
+        endDate = '2025-09-15',
+        resolution = 'LOW'
+    } = req.body;
+
+    const params = new URLSearchParams({
+        'spatial-resolution': resolution,
+        'temporal-resolution': 'DAILY',
+        'group-by': 'FLAGANDGEARTYPE',
+        'datasets[0]': FISHING_EFFORT_DATASET,
+        'date-range': `${startDate},${endDate}`,
+        'format': 'JSON'
+    });
+
+    const geojson = {
+        type: 'Polygon',
+        coordinates: [[
+            [Number(minLng), Number(minLat)],
+            [Number(maxLng), Number(minLat)],
+            [Number(maxLng), Number(maxLat)],
+            [Number(minLng), Number(maxLat)],
+            [Number(minLng), Number(minLat)]
+        ]]
+    };
+
+    try {
+        const response = await fetch(`${API}/4wings/report?${params}`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ geojson })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('GFW 4Wings request failed:', response.status, data);
+            return res.status(response.status).json({ error: '4Wings area request failed.' });
+        }
+
+        res.json(data);
+    } catch (err) {
+        console.error('Could not reach GFW 4Wings API:', err);
+        res.status(502).json({ error: 'Could not reach the 4Wings API.' });
     }
 });
 
