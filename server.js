@@ -10,6 +10,12 @@ const xlsx = require('xlsx');
 const cron = require('node-cron');
 const nodemailer = require('nodemailer');
 const { MongoClient, ObjectId } = require('mongodb-legacy');
+const {
+    validateCompareRequest,
+    flatten4WingsEntries,
+    summarizePeriod,
+    comparePeriods
+} = require('./comparisonUtils');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -175,6 +181,161 @@ app.post('/api/4wings/area', async (req, res) => {
     } catch (err) {
         console.error('Could not reach GFW 4Wings API:', err);
         res.status(502).json({ error: 'Could not reach the 4Wings API.' });
+    }
+});
+
+async function fetch4WingsComparisonPeriod({ token, geojson, startDate, endDate, resolution, temporalResolution }) {
+    const params = new URLSearchParams({
+        'spatial-resolution': resolution,
+        'temporal-resolution': temporalResolution,
+        'group-by': 'FLAGANDGEARTYPE',
+        'datasets[0]': FISHING_EFFORT_DATASET,
+        'date-range': `${startDate},${endDate}`,
+        format: 'JSON'
+    });
+
+    async function requestReportWithRetry() {
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const res = await fetch(`${API}/4wings/report?${params}`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ geojson })
+            });
+            const data = await res.json();
+            if (res.status === 429 && attempt === 0) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+                continue;
+            }
+            return { res, data };
+        }
+    }
+
+    const [{ res: reportRes, data }, eventsRes] = await Promise.all([
+        requestReportWithRetry(),
+        fetch(`${API}/events?limit=100&offset=0`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                datasets: [FISHING_EVENTS_DATASET],
+                startDate,
+                endDate,
+                geometry: geojson
+            })
+        })
+    ]);
+
+    const eventsData = eventsRes.ok ? await eventsRes.json() : { entries: [] };
+
+    if (!reportRes.ok) {
+        const gfwDetail =
+            data?.messages?.[0]?.detail ||
+            data?.message ||
+            data?.error ||
+            `HTTP ${reportRes.status}`;
+        const error = new Error(`GFW API (${reportRes.status}): ${gfwDetail}`);
+        error.status = reportRes.status;
+        error.details = data;
+        throw error;
+    }
+
+    return {
+        reportData: data,
+        vesselEvents: eventsData.entries || []
+    };
+}
+
+app.post('/api/4wings/compare', async (req, res) => {
+    if (!req.session.loggedin) {
+        return res.status(401).json({ error: 'Please log in.' });
+    }
+
+    const token = process.env.GFW_API_TOKEN || GFW_TOKEN;
+    if (!token) {
+        return res.status(500).json({ error: 'GFW API token is not configured.' });
+    }
+
+    const validation = validateCompareRequest(req.body);
+    if (!validation.valid) {
+        return res.status(400).json({ error: validation.error });
+    }
+
+    const {
+        minLat, minLng, maxLat, maxLng,
+        periodAStart, periodAEnd, periodBStart, periodBEnd,
+        daysA, daysB, resolution, timeframe
+    } = validation.value;
+
+    const geojson = {
+        type: 'Polygon',
+        coordinates: [[
+            [minLng, minLat],
+            [maxLng, minLat],
+            [maxLng, maxLat],
+            [minLng, maxLat],
+            [minLng, minLat]
+        ]]
+    };
+
+    try {
+        const resultA = await fetch4WingsComparisonPeriod({
+            token,
+            geojson,
+            startDate: periodAStart,
+            endDate: periodAEnd,
+            resolution,
+            temporalResolution: daysA > 62 ? 'MONTHLY' : 'DAILY'
+        });
+
+        const resultB = await fetch4WingsComparisonPeriod({
+            token,
+            geojson,
+            startDate: periodBStart,
+            endDate: periodBEnd,
+            resolution,
+            temporalResolution: daysB > 62 ? 'MONTHLY' : 'DAILY'
+        });
+
+        const recordsA = flatten4WingsEntries(resultA.reportData);
+        const recordsB = flatten4WingsEntries(resultB.reportData);
+        const summaryA = summarizePeriod(recordsA, resultA.vesselEvents);
+        const summaryB = summarizePeriod(recordsB, resultB.vesselEvents);
+        const comparison = comparePeriods(summaryA, summaryB);
+
+        res.json({
+            timeframe,
+            resolution,
+            area: { minLat, minLng, maxLat, maxLng },
+            periodA: {
+                startDate: periodAStart,
+                endDate: periodAEnd,
+                days: daysA,
+                summary: summaryA,
+                records: recordsA,
+                vesselEvents: resultA.vesselEvents
+            },
+            periodB: {
+                startDate: periodBStart,
+                endDate: periodBEnd,
+                days: daysB,
+                summary: summaryB,
+                records: recordsB,
+                vesselEvents: resultB.vesselEvents
+            },
+            comparison
+        });
+    } catch (err) {
+        if (err.status) {
+            console.error('GFW 4Wings compare failed:', err.status, err.details);
+            return res.status(err.status).json({ error: err.message });
+        }
+        console.error('Could not reach GFW API for comparison:', err);
+        res.status(502).json({ error: 'Could not reach the GFW API for comparison.' });
     }
 });
 

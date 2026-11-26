@@ -94,6 +94,142 @@
                 </div>
             </div>
 
+            <!-- Compare fishing activity across two date ranges -->
+            <div class="panel compare-panel">
+                <div class="panel-header compare-panel-header">
+                    <div>
+                        <h3>Compare Fishing Activity Over Time</h3>
+                        <span id="compare-area-badge" class="sync-meta">Using selected map area (56.0, -3.0 to 60.0, 2.0)</span>
+                    </div>
+                    <div class="compare-actions">
+                        <button type="button" id="plot-period-a-btn" class="tab-btn" disabled>Plot Period A on Map</button>
+                        <button type="button" id="plot-period-b-btn" class="tab-btn" disabled>Plot Period B on Map</button>
+                        <button type="button" id="export-compare-csv-btn" class="tab-btn" disabled>Export Comparison CSV</button>
+                    </div>
+                </div>
+
+                <form id="compare-form" class="compare-form">
+                    <div class="compare-field">
+                        <label for="compare-timeframe">Comparison Window</label>
+                        <select id="compare-timeframe">
+                            <option value="weekly">Weekly (7 days vs previous 7 days)</option>
+                            <option value="monthly" selected>Monthly (30 days vs previous 30 days)</option>
+                            <option value="yearly">Yearly (Year-on-Year 30-day window)</option>
+                            <option value="custom">Custom Date Ranges</option>
+                        </select>
+                    </div>
+
+                    <div class="compare-field">
+                        <label>Period A (Baseline)</label>
+                        <div class="split-inputs">
+                            <input type="date" id="compare-a-start" value="2025-07-18" required>
+                            <input type="date" id="compare-a-end" value="2025-08-16" required>
+                        </div>
+                    </div>
+
+                    <div class="compare-field">
+                        <label>Period B (Comparison)</label>
+                        <div class="split-inputs">
+                            <input type="date" id="compare-b-start" value="2025-08-17" required>
+                            <input type="date" id="compare-b-end" value="2025-09-15" required>
+                        </div>
+                    </div>
+
+                    <div class="compare-field">
+                        <label for="compare-res">Resolution</label>
+                        <div class="split-inputs">
+                            <select id="compare-res">
+                                <option value="LOW">Low (0.1°)</option>
+                                <option value="HIGH">High (0.01°)</option>
+                            </select>
+                            <button type="submit" class="btn-primary compare-submit-btn">Compare Periods</button>
+                        </div>
+                    </div>
+                </form>
+
+                <p id="compare-status" class="sync-meta" role="status">Choose a timeframe and click Compare Periods.</p>
+
+                <div id="compare-results" class="compare-results hidden">
+                    <div class="compare-kpi-grid">
+                        <div class="compare-kpi-card">
+                            <span class="kpi-label">Total Fishing Hours</span>
+                            <div class="compare-kpi-values">
+                                <div><small>Period A:</small> <strong id="cmp-hours-a">—</strong></div>
+                                <div><small>Period B:</small> <strong id="cmp-hours-b">—</strong></div>
+                            </div>
+                            <span id="cmp-hours-delta" class="delta-badge flat">—</span>
+                        </div>
+
+                        <div class="compare-kpi-card">
+                            <span class="kpi-label">Unique Tracked Vessels</span>
+                            <div class="compare-kpi-values">
+                                <div><small>Period A:</small> <strong id="cmp-vessels-a">—</strong></div>
+                                <div><small>Period B:</small> <strong id="cmp-vessels-b">—</strong></div>
+                            </div>
+                            <span id="cmp-vessels-delta" class="delta-badge flat">—</span>
+                        </div>
+
+                        <div class="compare-kpi-card">
+                            <span class="kpi-label">Active Grid Cells</span>
+                            <div class="compare-kpi-values">
+                                <div><small>Period A:</small> <strong id="cmp-cells-a">—</strong></div>
+                                <div><small>Period B:</small> <strong id="cmp-cells-b">—</strong></div>
+                            </div>
+                            <span id="cmp-cells-delta" class="delta-badge flat">—</span>
+                        </div>
+
+                        <div class="compare-kpi-card">
+                            <span class="kpi-label">Top Gear Type</span>
+                            <div class="compare-kpi-values">
+                                <div><small>Period A:</small> <strong id="cmp-gear-a">—</strong></div>
+                                <div><small>Period B:</small> <strong id="cmp-gear-b">—</strong></div>
+                            </div>
+                            <span id="cmp-gear-note" class="delta-badge flat">—</span>
+                        </div>
+                    </div>
+
+                    <div class="compare-visual-grid">
+                        <div class="compare-subpanel">
+                            <div class="panel-header">
+                                <h4>Fishing Hours by Gear Type</h4>
+                                <div class="chart-legend">
+                                    <span class="legend-item"><span class="legend-dot dot-a"></span>Period A</span>
+                                    <span class="legend-item"><span class="legend-dot dot-b"></span>Period B</span>
+                                </div>
+                            </div>
+                            <div id="compare-chart" class="compare-chart"></div>
+                        </div>
+
+                        <div class="compare-subpanel">
+                            <div class="panel-header">
+                                <h4>Detailed Breakdown</h4>
+                                <div class="map-tabs">
+                                    <button type="button" id="breakdown-gear-tab" class="tab-btn active">By Gear</button>
+                                    <button type="button" id="breakdown-flag-tab" class="tab-btn">By Flag</button>
+                                </div>
+                            </div>
+                            <div class="compare-table-wrap">
+                                <table class="vessel-table">
+                                    <thead>
+                                        <tr>
+                                            <th id="compare-breakdown-col">Gear Type</th>
+                                            <th>Period A (hrs)</th>
+                                            <th>Period B (hrs)</th>
+                                            <th>Change</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="compare-tbody">
+                                        <tr>
+                                            <td colspan="4" style="opacity: 0.6;">Run a comparison to see breakdown data.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!--vessel search panel -->
             <div class="panel vessel-search-panel">
             <h3>Search vessels</h3>
@@ -138,5 +274,6 @@
 
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
         <script src="/scripts/main.js"></script>
+        <script src="/scripts/comparison.js"></script>
     </body>
 </html>
